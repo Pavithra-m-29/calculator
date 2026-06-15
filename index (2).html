@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    body {
+      background: #dff0f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Nunito', sans-serif;
+    }
+ 
+    .calc {
+      background: #353d4f;
+      border-radius: 28px;
+      padding: 24px;
+      width: 320px;
+      box-shadow: 12px 12px 32px rgba(0,0,0,0.35), -4px -4px 12px rgba(255,255,255,0.04);
+    }
+ 
+    /* Display */
+    .display {
+      text-align: right;
+      padding: 8px 4px 20px;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+    .expr {
+      font-size: 15px;
+      color: #7a8a9a;
+      min-height: 20px;
+      word-break: break-all;
+    }
+    .result {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+      word-break: break-all;
+    }
+    .live-result {
+      font-size: 16px;
+      color: #4ecdc4;
+      min-height: 22px;
+    }
+ 
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+ 
+    button {
+      font-family: 'Nunito', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      border: none;
+      border-radius: 14px;
+      height: 64px;
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      background: #2e3545;
+      color: #c8d4e0;
+      box-shadow:
+        4px 4px 10px rgba(0,0,0,0.4),
+        -2px -2px 6px rgba(255,255,255,0.05);
+    }
+    button:active {
+      transform: scale(0.93);
+      box-shadow:
+        2px 2px 5px rgba(0,0,0,0.4),
+        inset 2px 2px 6px rgba(0,0,0,0.3);
+    }
+ 
+    /* Teal accent: AC, DE */
+    .btn-func {
+      color: #4ecdc4;
+      font-size: 16px;
+    }
+ 
+    /* Operators */
+    .btn-op {
+      color: #c8d4e0;
+      font-size: 22px;
+    }
+ 
+    /* Numbers */
+    .btn-num {
+      color: #ffffff;
+      font-size: 20px;
+    }
+ 
+    /* Equals — spans 2 cols */
+    .btn-eq {
+      grid-column: span 2;
+      background: #4ecdc4;
+      color: #2e3545;
+      font-size: 24px;
+      box-shadow:
+        4px 4px 10px rgba(0,0,0,0.4),
+        -2px -2px 6px rgba(100,220,210,0.15);
+    }
+    .btn-eq:active {
+      background: #3db8b0;
+    }
+  </style>
+</head>
+<body>
+<div class="calc">
+  <div class="display">
+    <div class="expr"    id="expr"></div>
+    <div class="result"  id="result">0</div>
+    <div class="live-result" id="live"></div>
+  </div>
+ 
+  <div class="grid">
+    <!-- Row 1 -->
+    <button class="btn-func" onclick="clearAll()">AC</button>
+    <button class="btn-func" onclick="deleteLast()">DE</button>
+    <button class="btn-num"  onclick="inputDot()">.</button>
+    <button class="btn-op"   onclick="inputOp('/')">÷</button>
+ 
+    <!-- Row 2 -->
+    <button class="btn-num" onclick="inputNum('7')">7</button>
+    <button class="btn-num" onclick="inputNum('8')">8</button>
+    <button class="btn-num" onclick="inputNum('9')">9</button>
+    <button class="btn-op"  onclick="inputOp('*')">×</button>
+ 
+    <!-- Row 3 -->
+    <button class="btn-num" onclick="inputNum('4')">4</button>
+    <button class="btn-num" onclick="inputNum('5')">5</button>
+    <button class="btn-num" onclick="inputNum('6')">6</button>
+    <button class="btn-op"  onclick="inputOp('-')">−</button>
+ 
+    <!-- Row 4 -->
+    <button class="btn-num" onclick="inputNum('1')">1</button>
+    <button class="btn-num" onclick="inputNum('2')">2</button>
+    <button class="btn-num" onclick="inputNum('3')">3</button>
+    <button class="btn-op"  onclick="inputOp('+')">+</button>
+ 
+    <!-- Row 5 -->
+    <button class="btn-num" onclick="inputNum('00')">00</button>
+    <button class="btn-num" onclick="inputNum('0')">0</button>
+    <button class="btn-eq"  onclick="calculate()">=</button>
+  </div>
+</div>
+ 
+<script>
+  let exprStr  = '';
+  let current  = '';
+  let previous = '';
+  let operator = null;
+  let state    = 'start'; // start | typing | operator | result
+ 
+  const exprEl   = document.getElementById('expr');
+  const resultEl = document.getElementById('result');
+  const liveEl   = document.getElementById('live');
+ 
+  function opSymbol(op) {
+    return { '*': '×', '/': '÷', '+': '+', '-': '−' }[op] || op;
+  }
+ 
+  function computeLive() {
+    if (!operator || previous === '' || current === '') return null;
+    const a = parseFloat(previous), b = parseFloat(current);
+    let res;
+    switch (operator) {
+      case '+': res = a + b; break;
+      case '-': res = a - b; break;
+      case '*': res = a * b; break;
+      case '/': res = b === 0 ? NaN : a / b; break;
+    }
+    return isNaN(res) ? 'Error' : String(parseFloat(res.toFixed(10)));
+  }
+ 
+  function updateDisplay() {
+    exprEl.textContent = exprStr;
+ 
+    if (state === 'operator') {
+      resultEl.textContent = current || previous || '0';
+      liveEl.textContent = '';
+    } else if (state === 'typing' && operator) {
+      resultEl.textContent = current;
+      const live = computeLive();
+      liveEl.textContent = live !== null ? '= ' + live : '';
+    } else if (state === 'result') {
+      // already set by calculate()
+    } else {
+      resultEl.textContent = current || '0';
+      liveEl.textContent = '';
+    }
+  }
+ 
+  function inputNum(n) {
+    if (state === 'start') {
+      current = n === '00' ? '0' : n;
+      exprStr = current;
+      state = 'typing';
+    } else if (state === 'operator') {
+      current = n === '00' ? '0' : n;
+      exprStr = previous + opSymbol(operator) + current;
+      state = 'typing';
+    } else if (state === 'result') {
+      current = n === '00' ? '0' : n;
+      exprStr = current;
+      previous = ''; operator = null;
+      state = 'typing';
+    } else {
+      // typing
+      if (n === '00') {
+        if (current === '0') return;
+        current += '00';
+      } else {
+        current = (current === '0') ? n : current + n;
+      }
+      exprStr = operator ? previous + opSymbol(operator) + current : current;
+    }
+    updateDisplay();
+  }
+ 
+  function inputDot() {
+    if (state === 'operator' || state === 'start') {
+      current = '0.';
+      exprStr = operator ? previous + opSymbol(operator) + '0.' : '0.';
+      state = 'typing';
+    } else if (state === 'result') {
+      current = '0.'; exprStr = '0.';
+      previous = ''; operator = null; state = 'typing';
+    } else if (!current.includes('.')) {
+      current += '.';
+      exprStr = operator ? previous + opSymbol(operator) + current : current;
+    }
+    updateDisplay();
+  }
+ 
+  function inputOp(op) {
+    if (state === 'typing' && operator) {
+      const res = computeLive();
+      if (res) { previous = res; current = res; }
+    } else {
+      previous = current || previous || '0';
+    }
+    operator = op;
+    current  = '';
+    exprStr  = previous + opSymbol(op);
+    state    = 'operator';
+    updateDisplay();
+  }
+ 
+  function calculate() {
+    if (!operator || previous === '' || current === '') return;
+    const res = computeLive();
+    exprEl.textContent  = previous + opSymbol(operator) + current + '=';
+    resultEl.textContent = res;
+    liveEl.textContent  = '';
+    current = res; previous = res; operator = null; state = 'result';
+  }
+ 
+  function clearAll() {
+    exprStr = ''; current = ''; previous = ''; operator = null; state = 'start';
+    exprEl.textContent = '';
+    resultEl.textContent = '0';
+    liveEl.textContent = '';
+  }
+ 
+  function deleteLast() {
+    if (state === 'result' || state === 'start') { clearAll(); return; }
+    if (state === 'operator') {
+      operator = null; current = previous; exprStr = previous; state = 'typing';
+      updateDisplay(); return;
+    }
+    current = current.length > 1 ? current.slice(0, -1) : '0';
+    exprStr = operator ? previous + opSymbol(operator) + (current === '0' ? '' : current) : current;
+    updateDisplay();
+  }
+ 
+  document.addEventListener('keydown', e => {
+    if ('0123456789'.includes(e.key)) inputNum(e.key);
+    else if (e.key === '.') inputDot();
+    else if (['+','-','*','/'].includes(e.key)) { e.preventDefault(); inputOp(e.key); }
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') deleteLast();
+    else if (e.key === 'Escape') clearAll();
+  });
+</script>
+</body>
+</html>
+ 
